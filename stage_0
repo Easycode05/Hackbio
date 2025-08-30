@@ -1,0 +1,55 @@
+echo 'Israel'
+mkdir Israel 	#creates a directory named Israel
+mkdir biocomputing && cd biocomputing 	 #creates the direcotry and changes to the directory in one line
+
+wget https://raw.githubusercontent.com/josoga2/dataset-repos/main/wildtype.fna
+wget https://raw.githubusercontent.com/josoga2/dataset-repos/main/wildtype.gbk
+
+ls -lh 	#checks for all files in our current dirctory
+mv wildtype.fna ../Israel/ #moves the fna file to the folder Israel/
+rm wildtype.gbk.1	#deletes the duplicate gbk file
+
+cd ../		#changes directory to the one above (biocomputing to username)
+cd Israel	#changes directory (username to Israel)
+ls -lh		#lists all the file in dir Israel
+grep -i 'tatatata' wildtype.fna		#confirms if the fna file is the contains a mutant sequence
+grep -i 'tatatata' wildtype.fna > mutant_sequences.txt 	#the output is saved into a file - mutant_sequences.txt
+
+cd ../		#changes directory to the one above (Israel to username)
+cd biocomputing		#changes directory (username to biocomputing)
+
+tail -n +2 wildtype.gbk | wc -l 	#count the number of lines in the gbk file excluding the header
+wc -l wildtype.gbk 	#checks the total number of lines in the gbk file 
+grep "^LOCUS"  wildtype.gbk | awk '{print "Seqeunce length: "$3 " bp"}' #This prints the sequence length of wildetype.gbk
+grep "^SOURCE" wildtype.gbk | awk '{$1="";print "Source organism:" $0}' #This prints the source organism in wildetype.gbk
+grep '/gene' wildtype.gbk
+clear
+history
+ls Israel
+cd ../
+ls Israel
+ls biocomputing
+history
+
+#Activate base
+conda activate base
+conda activate base #activate base conda environment
+
+#Creating funtools environment and activating it
+conda create -n funtools
+conda activate funtools #activates the funtools environment
+
+#Installing figlet with conda
+conda install tsnyder::figlet -y
+figlet Israel
+
+#Installing conda packages
+conda install -c bioconda bwa
+conda install -c bioconda blast
+conda install -c bioconda samtools
+conda install -c bioconda bedtools
+conda install -c bioconda spades
+conda install -c bioconda bcftools
+conda install -c bioconda fastp
+conda install -c bioconda multiqc
+history
