@@ -1,9 +1,11 @@
+#Creating directories
 echo 'Israel'
-mkdir Israel 	#creates a directory named Israel
-mkdir biocomputing && cd biocomputing 	 #creates the direcotry and changes to the directory in one line
+mkdir Israel 	
+mkdir biocomputing && cd biocomputing 	 
 
-wget https://raw.githubusercontent.com/josoga2/dataset-repos/main/wildtype.fna
-wget https://raw.githubusercontent.com/josoga2/dataset-repos/main/wildtype.gbk
+#Downloading files 
+wget https://raw.githubusercontent.com/josoga2/dataset-repos/main/wildtype.fna && echo "(Awesome) Download Successful!" || echo "(X) Download failed!"
+wget https://raw.githubusercontent.com/josoga2/dataset-repos/main/wildtype.gbk && echo "(Awesome) Download Successful!" || echo "(X) Download failed!"
 
 ls -lh 	#checks for all files in our current dirctory
 mv wildtype.fna ../Israel/ #moves the fna file to the folder Israel/
@@ -12,24 +14,84 @@ rm wildtype.gbk.1	#deletes the duplicate gbk file
 cd ../		#changes directory to the one above (biocomputing to username)
 cd Israel	#changes directory (username to Israel)
 ls -lh		#lists all the file in dir Israel
-grep -i 'tatatata' wildtype.fna		#confirms if the fna file is the contains a mutant sequence
-grep -i 'tatatata' wildtype.fna > mutant_sequences.txt 	#the output is saved into a file - mutant_sequences.txt
+grep 'tatatata' wildtype.fna		#confirms if the fna file is the contains a mutant sequence
+grep 'tatatata' wildtype.fna > mutant_sequences.txt 	#the output is saved into a file - mutant_sequences.txt
 
 cd ../		#changes directory to the one above (Israel to username)
 cd biocomputing		#changes directory (username to biocomputing)
 
 tail -n +2 wildtype.gbk | wc -l 	#count the number of lines in the gbk file excluding the header
-wc -l wildtype.gbk 	#checks the total number of lines in the gbk file 
-grep "^LOCUS"  wildtype.gbk | awk '{print "Seqeunce length: "$3 " bp"}' #This prints the sequence length of wildetype.gbk
-grep "^SOURCE" wildtype.gbk | awk '{$1="";print "Source organism:" $0}' #This prints the source organism in wildetype.gbk
+wc -l wildtype.gbk 	#checks the total number of lines in the gbk file
+
+#Print the sequence length of wildtype.gbk 
+grep "^LOCUS"  wildtype.gbk | awk '{print "Seqeunce length: "$3 " bp"}' 
+
+
+#Create a script for the validation of wildtype.gbk 
+nano validate.sh
+file="wildtype.gbk"
+echo "Validation passed"
+#checks if file exists
+if [ ! -f "$file" ]; then
+        echo "File not found!"
+        exit 1
+fi
+
+#Check if file is not empty
+if [ ! -s "$file" ]; then
+        echo "File is empty!"
+        exit 1
+fi
+
+#checks if LOCUS tag is present
+if ! grep -q "^LOCUS" "$file"; then
+        echo "LOCUS tag not found. File may be incomplete."
+        exit 1
+fi
+
+echo "Validation passed"
+
+bash validate.sh
+
+
+#Create a script to check the biological interpretation 
+nano bio_interpretation.sh
+#!/bin/bash
+
+#Biological implication of output analysis
+echo "Biological Interpretation"
+seq_length=$(grep "^LOCUS"  wildtype.gbk | awk '{print $3}')
+
+if [ "$seq_length" -gt 10000 ]; then
+        echo "- This is a relatively long sequence, possibly a complete gene or genome region"
+else
+        echo "- This is a short sequence, likely a fragment or partial gene."
+fi
+
+bash bio_interpretation.sh
+
+
+grep "^SOURCE" wildtype.gbk | awk '{$1="";print "Source organism:" $0}' 
+
+
+#Create a script to check the organism
+nano bio_organism.sh
+#!/bin/bash
+
+organism=$(grep "^SOURCE" wildtype.gbk | awk '{$1="";print $0}' | xargs)
+echo "-The organism $organism indicate the biologic source of this sequence, which can help in multiple studies"
+bash bio_organism.sh
+
+
+#Print all the genes in wildtype.gbk
 grep '/gene' wildtype.gbk
 clear
-history
+
 ls Israel
 cd ../
 ls Israel
 ls biocomputing
-history
+
 
 #Activate base
 conda activate base
@@ -39,8 +101,9 @@ conda activate base #activate base conda environment
 conda create -n funtools
 conda activate funtools #activates the funtools environment
 
-#Installing figlet with conda
-conda install tsnyder::figlet -y
+#Installing figlet
+sudo apt-get update
+sudo apt-get install figlet -y
 figlet Israel
 
 #Installing conda packages
@@ -52,4 +115,6 @@ conda install -c bioconda spades
 conda install -c bioconda bcftools
 conda install -c bioconda fastp
 conda install -c bioconda multiqc
+
 history
+
