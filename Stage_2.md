@@ -321,3 +321,126 @@ tabix -p vcf "filtered/combined_filtered.vcf.gz"
 echo ">>> Done. Final filtered VCF: filtered/combined_filtered.vcf.gz"
 ```
 
+*vi) Extracting chromosome 7 for analysis*
+```
+bcftools view -r chr7 "filtered/combined_filtered.vcf.gz -Oz -o chr7_filtered3.vcf.gz
+```
+*indexing*
+```
+bcftools index chr7_filtered3.vcf.gz
+```
+
+*vi) Variant Annotation*
+
+All variants were annotated using the Ensembl Variant Effect Predictor (VEP).
+The chr7_filtered3.vcf.gz" file was uploaded to ensembl for analysis
+A VEP table was gotten as a result
+The following filters were applied to VEP table 
+- Symbol=CFTR
+- Consequence=missense_variant
+The resulting table was exported in as *vep_input.txt*
+
+The individual genotype (father and child) was extracted from *chr7_filtered3.vcf.gz* and exported as *genotypes.txt*.
+
+0/0 - homozygous reference
+0/1 or 1/0 - heterozygous
+1/1 - homozygous alternate
+
+```
+bcftools query -f '%CHROM\t%POS\t%REF\t%ALT[\t%GT]\n' chr7_filtered3.vcf.gz \
+| sed '1s/.*/CHROM\tPOS\tREF\tALT\tFather_GT\tChild_GT/' > genotypes.txt
+```
+
+*vi) Data Merging*
+
+The annotated VEP output "vep_input" was merged with the extracted father and child genotypes to create a unified table. 
+This allowed direct comparison of genotypes for each variant while retaining the clinical annotations.
+
+A python script was used to achieve this
+```
+import pandas as pd
+import re
+
+# Load VEP output
+
+vep = pd.read_csv("vep_input.txt", sep="\t")
+
+# Keep only CFTR variants
+vep_cftr = vep[vep["SYMBOL"] == "CFTR"]
+
+# Extract useful columns
+vep_cftr = vep_cftr[[
+    "Location",
+    "Allele",
+    "SYMBOL",
+    "Existing_variation",
+    "Consequence",
+    "IMPACT",
+    "CLIN_SIG",
+    "HGVSp"  # Needed to calculate protein length
+]]
+
+# Extract start position from Location
+# Format: chr:start-end, e.g., 7:117509089-117509089
+vep_cftr['POS'] = vep_cftr['Location'].str.split(':').str[1].str.split('-').str[0].astype(int)
+
+# Calculate protein length from HGVSp if Protein_length not present
+# Example HGVSp: "p.Arg74Trp" or "p.Gly1234_Val1236del"
+def calc_protein_length(hgvsp):
+    if pd.isna(hgvsp):
+        return 0
+    # Extract numbers from the string
+    nums = re.findall(r'\d+', hgvsp)
+    if len(nums) == 0:
+        return 0
+    # Use the largest number as protein position
+    return max(int(n) for n in nums)
+
+vep_cftr['Protein_length'] = vep_cftr['HGVSp'].apply(calc_protein_length)
+
+# Pick longest transcript per position
+
+vep_sorted = vep_cftr.sort_values(['POS', 'Protein_length'], ascending=[True, False])
+vep_best = vep_sorted.groupby('POS', as_index=False).first()
+
+# Load genotype calls
+geno = pd.read_csv("genotypes.txt", sep="\t")
+geno["POS"] = geno["POS"].astype(int)
+
+# Merge on position
+merged = pd.merge(vep_best, geno, on="POS", how="inner")
+
+# Add inheritance labeling
+def label_inheritance(row):
+    if row["Child_GT"] == "0/0":
+        return "Not carried by Child"
+    elif row["Father_GT"] == "0/0" and row["Child_GT"] != "0/0":
+        return "De novo (not in Father)"
+    elif row["Father_GT"] != "0/0" and row["Child_GT"] != "0/0":
+        return "Inherited from Father"
+    else:
+        return "Unknown"
+
+merged["Inheritance"] = merged.apply(label_inheritance, axis=1)
+
+# Save final inheritance table
+
+merged.to_csv("cftr_inheritance_table_best_transcripts.csv", index=False)
+```
+
+Variants affecting multiple transcripts were resolved by slecting the transcript with the largest protein position derived from HGVSp. 
+This ensured one representative consequence per genomic position for downstream analysis.
+
+*The inheritance was labelled*
+- Child 0/0: Not carried by Child
+- Father 0/0 + Child non-zero: De novo (not in father)
+- Father non-zero + Child non-zero: Inherited from Father
+
+
+**Inheritance Analysis**
+
+For each variant, child genotype were compared fo the father genotypes to determine the inheritance pattern:
+- Inherited from father: Child carries at least one alternate allele present in the father
+- Not inherited from father (Not carried by Child): Child does not carry any alternate alleles present in father.
+- De novo (not in Father): Child carries an alternate allele absent in father.
+
