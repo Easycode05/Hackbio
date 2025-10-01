@@ -1,4 +1,4 @@
-<img width="1181" height="206" alt="image" src="https://github.com/user-attachments/assets/cfe9acca-8d11-4282-a8c9-e45c66779e13" /># Clinical Case Study: Whole-Genome Sequencing
+# Clinical Case Study: Whole-Genome Sequencing
 
 **Clinical Background**
 
