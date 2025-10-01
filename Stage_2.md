@@ -1,4 +1,4 @@
-# Clinical Case Study: Whole-Genome Sequencing
+<img width="1181" height="206" alt="image" src="https://github.com/user-attachments/assets/cfe9acca-8d11-4282-a8c9-e45c66779e13" /># Clinical Case Study: Whole-Genome Sequencing
 
 **Clinical Background**
 
@@ -451,9 +451,9 @@ For each variant, child genotype were compared fo the father genotypes to determ
 
 *rs115545701*
 - This variant has been associated with Cystic fibrosis but they have conflicting interpretation of its pathogenicity, hence it is likely benign. 
-- The variant is present in the father but absent in the child - No inheritance seen in child
-- ClinVar Classification, Review status - 1 star
-- T=0.0005542 (776/1400248, GnomAD_exomes)
+- The variant is present in the father but absent in the child - No inheritance seen in child.
+- ClinVar Classification, Review status - 1 star.
+- T=0.0005542 (776/1400248, GnomAD_exomes).
    
 <img width="747" height="359" alt="rs115545701" src="https://github.com/user-attachments/assets/0ab70c2c-6f28-4167-8b45-958ecf3dc5c7" />
 
@@ -461,9 +461,18 @@ For each variant, child genotype were compared fo the father genotypes to determ
 - Pathogenic for Congenital bilateral aplasia of vas deferens from CFTR mutation
 - Conflicitng interpretations of pathogenicity for cystic fibrosis
 - A=0.004169 (622/149212, GnomAD_genomes)
+- The variant is present in the father but absent in the child - No inheritance seen in child.
   
 <img width="1179" height="343" alt="rs11971167" src="https://github.com/user-attachments/assets/7ac51330-1c2c-43fb-9bd8-77696c842610" />
 <img width="1184" height="322" alt="rs119_2" src="https://github.com/user-attachments/assets/d2ad9cde-3faa-426b-9faf-314587069294" />
 
+*rs213950*
+- This variant has been associated with Cystic fibrosis - reported as benign and likely benign.
+- ClinVar Classification, Review status - 2 stars.
+- A=0.4261868 (590660/1385918, GnomAD_exomes).
+- The variant is present in the father and child - The child inherited the variant from the father.
+
+<img width="544" height="226" alt="rs213950" src="https://github.com/user-attachments/assets/c49b9f0e-ba0f-4740-b926-38428f3bc4d4" />
+<img width="1181" height="206" alt="rs213_2" src="https://github.com/user-attachments/assets/42cc34e7-6aa5-4d42-b9d4-e32d918dca41" />
 
 
