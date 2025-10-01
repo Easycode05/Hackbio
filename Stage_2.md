@@ -25,13 +25,13 @@ You are part of the bioinformatics team tasked with analyzing the WGS data to de
 A directory "projects" was created using - mkdir projects
 A sub-directory "raw_reads" was created and the reads (forward and reverse of the father and child is contained here)
 
-1) QC Report: I used fastqc to run a QC report for the reads. The output file is to be stored in qc/
+**1) QC Report:** I used fastqc to run a QC report for the reads. The output file is to be stored in qc/
 ```
 mkdir qc
 Fastqc raw_reads/*.gz -o qc/
 ```
 
-2) I exported the html reports(forward of father and child)
+**2) Html reports(forward of father and child)**
 
 child_1_fastqc.html
 - 10/11 flagged green
@@ -50,4 +50,274 @@ father_1_fastqc.html
 - Average Quality Per Read(Phred score): 38
 - % of Sequence remaning if deduplicated: 94.01
 - No Overrepresented sequence
+
+**3) Trimming with Fastp**
+   
+A bash script "trim" was created to handle the trimming of the reads.
+The bash script starts with creating a directory trim/ to hold the trimmed reads.
+
+Tool(s) used
+- fastp
+```
+#!/bin/bash
+
+#making directory
+mkdir -p trim
+
+#Samples
+Samples=(child father)
+
+#access the raw reads files and run fastp, send the output to a trim directory
+for s in "${Samples[@]}"; do
+   echo ">>> Running fastp for $s..."
+   fastp \
+      -i "/raw_reads/${s}_1.fastq.gz" \
+      -I "/raw_reads/${s}_2.fastq.gz" \
+      -o "trim/${s}_1_trim.fastq.gz" \
+      -O "trim/${s}_2_trim.fastq.gz" \
+      -h "trim/${s}.fastp.html" \
+      -j "trim/${s}.fastp.json"\
+      --verbose
+done
+```
+**4) Genome mapping**
+This involves mapping the reference genome (hg38) to the child and father genome.
+A bash script "align.sh" was used to automate the genome mapping process. 
+
+Tools used
+- Repair.sh
+- bwa mem
+- samtools 
+
+```
+#!/bin/bash
+
+#Reference genome
+REF="/home/a_adegite/a_adegite/projects/refdata/hg38/hg38.fasta"
+
+#make directories
+mkdir -p repaired
+mkdir -p alignment
+
+#Samples
+Samples=(child father)
+
+for s in "${Samples[@]}"; do
+   echo ">>>Repairing paired reads for $s..."
+   
+   #Repair forward and reverse reads, output repaired pairs + singletons
+   repair.sh in1="trim/${s}_1_trim.fastq.gz" in2="trim/${s}_2_trim.fastq.gz" \
+             out1="repaired/${s}_1.repaired.fastq.gz" out2="repaired/${s}_2.repaired.fastq.gz" \
+             outsingle="repaired/${s}_singletons.fastq.gz"
+   
+   echo ">>> Mapping $s to reference genome..."
+   
+   #Map repaired reads to reference, output BAM directly
+   bwa mem -R "@RG\tID:${s}\tSM:${s}\tPL:ILLUMINA" $REF "repaired/${s}_1.repaired.fastq.gz" "repaired/${s}_1.repaired.fastq.gz" \
+   | samtools view -b -o "alignment/${s}_sample.bam"
+   
+   echo ">>> Finished $s"
+
+done
+```
+
+**5) Variant Calling**
+
+*i) Sorting & Marking duplicates*
+```
+#!/bin/bash
+
+# Directories
+mkdir -p sorted marked
+
+# Samples
+Samples=(child father)
+
+# Loop through samples
+for s in "${Samples[@]}"; do
+(
+    echo ">>> Processing $s"
+
+    # 1. Sort BAM
+    gatk SortSam \
+        -I "alignment/${s}_sample.bam" \
+        -O "sorted/${s}_sorted.bam" \
+        -SORT_ORDER coordinate
+
+    # 2. Mark duplicates
+    gatk MarkDuplicates \
+        -I "sorted/${s}_sorted.bam" \
+        -O "marked/${s}_marked.bam" \
+        -M "marked/${s}_metrics.txt"
+
+    # 3. Build BAM index
+    gatk BuildBamIndex -I "marked/${s}_marked.bam"
+
+    echo ">>> Finished $s"
+) &
+done
+
+# Wait for all background jobs to finish
+wait
+```
+
+*ii) Calibration using Base Score Quality Recalibration*
+```
+#!/bin/bash
+
+# Directories
+mkdir -p BQSR
+
+# Samples
+Samples=(child father)
+
+#Reference genome
+REF="/home/a_adegite/a_adegite/projects/refdata/hg38/hg38.fasta"
+
+# Known sites (both dbSNP + known indels)
+DBSNP="/home/a_adegite/a_adegite/projects/refdata/hg38/known_sites/Homo_sapiens_assembly38.dbsnp138.vcf.gz"
+INDELS="/home/a_adegite/a_adegite/projects/refdata/hg38/known_sites/Homo_sapiens_assembly38.known_indels.vcf.gz"
+
+# Loop through samples
+for s in "${Samples[@]}"; do
+    echo ">>> Performing BQSR for $s..."
+
+    #Base recalibration (generate recalibration table)
+    gatk BaseRecalibrator \
+        -I "marked/${s}_marked.bam" \
+        -R $REF \
+        --known-sites $DBSNP \
+        --known-sites $INDELS \
+        -O "BQSR/${s}_recal_data.table"
+
+    #Apply recalibration
+    gatk ApplyBQSR \
+        -I "marked/${s}_marked.bam" \
+        -R $REF \
+        --bqsr-recal-file "BQSR/${s}_recal_data.table" \
+        -O "BQSR/${s}_recal.bam"
+done
+```
+*iii) Haplotype caller*
+```
+#!/bin/bash
+
+#Directories
+mkdir -p gvcfs
+
+#Samples
+Samples=(child father)
+
+#Reference genome
+REF="/home/a_adegite/a_adegite/projects/refdata/hg38/hg38.fasta"
+
+#Loop through samples
+for s in "${Samples[@]}"; do
+    echo ">>> Running HaplotypeCaller for $s"
+
+    gatk HaplotypeCaller \
+        -I "BQSR/${s}_recal.bam" \
+        -R $REF \
+        -O "gvcfs/${s}.g.vcf.gz" \
+        -ERC GVCF
+done
+```
+*iv) Running combinegvcfs*
+```
+#!/bin/bash
+
+#Directory
+mkdir -p joint_genotyping
+
+#Reference genome
+REF="/home/a_adegite/a_adegite/projects/refdata/hg38/hg38.fasta"
+
+gatk CombineGVCFs \
+    -R $REF \
+    -V "gvcfs/child.g.vcf.gz" \
+    -V "gvcfs/father.g.vcf.gz" \
+    -O "joint_genotyping/combined.g.vcf.gz"
+```
+*v) Genotype the combinedgvcfs*
+
+This will generate a joint raw multi-sample VCF that will be hard-filtered
+```
+#!/bin/bash
+
+#Directory
+mkdir -p VCF
+
+#Reference genome
+REF="/home/a_adegite/a_adegite/projects/refdata/hg38/hg38.fasta"
+
+gatk GenotypeGVCFs \
+    -R $REF \
+    -V "joint_genotyping/combined.g.vcf.gz" \
+    -O "VCF/combined_raw.vcf.gz"
+```
+
+*vi) Filtering of variants*
+
+This helps remove false positives and ensure that high quality variants are selected.
+The sample size is small, hence, the hard filtering method will be used.
+```
+#!/bin/bash
+set -euo pipefail
+
+#Reference genome
+REF="/home/a_adegite/a_adegite/projects/refdata/hg38/hg38.fasta"
+
+#the combined vcf files from the joint genotyping process
+RAW_VCF="VCF/combined_raw.vcf.gz"
+
+#Directory
+mkdir -p filtered
+
+echo ">>> Extracting SNPs"
+gatk SelectVariants \
+  -R "$REF" \
+  -V "$RAW_VCF" \
+  --select-type-to-include SNP \
+  -O "filtered/combined_raw_snps.vcf.gz"
+
+echo ">>> Applying SNP filters (GATK-style: each filter separately)"
+gatk VariantFiltration \
+  -R "$REF" \
+  -V "filtered/combined_raw_snps.vcf.gz" \
+  -O "filtered/combined_filtered_snps.vcf.gz" \
+  --filter-name "QD_lt_2" --filter-expression "QD < 2.0" \
+  --filter-name "QUAL_lt_30" --filter-expression "QUAL < 30.0" \
+  --filter-name "SOR_gt_3" --filter-expression "SOR > 3.0" \
+  --filter-name "FS_gt_60" --filter-expression "FS > 60.0" \
+  --filter-name "MQ_lt_40" --filter-expression "MQ < 40.0" \
+  --filter-name "MQRankSum_lt_-12.5" --filter-expression "MQRankSum < -12.5" \
+  --filter-name "ReadPosRankSum_lt_-8" --filter-expression "ReadPosRankSum < -8.0"
+
+echo ">>> Extracting INDELs"
+gatk SelectVariants \
+  -R "$REF" \
+  -V "$RAW_VCF" \
+  --select-type-to-include INDEL \
+  -O "filtered/combined_raw_indels.vcf.gz"
+
+echo ">>> Applying INDEL filters (GATK-style)"
+gatk VariantFiltration \
+  -R "$REF" \
+  -V "filtered/combined_raw_indels.vcf.gz" \
+  -O "filtered/combined_filtered_indels.vcf.gz" \
+  --filter-name "QD_lt_2" --filter-expression "QD < 2.0" \
+  --filter-name "FS_gt_200" --filter-expression "FS > 200.0" \
+  --filter-name "ReadPosRankSum_lt_-20" --filter-expression "ReadPosRankSum < -20.0"
+
+echo ">>> Merging filtered SNPs and INDELs into final VCF"
+gatk MergeVcfs \
+  -I "filtered/combined_filtered_snps.vcf.gz" \
+  -I "filtered/combined_filtered_indels.vcf.gz" \
+  -O "filtered/combined_filtered.vcf.gz"
+
+echo ">>> Indexing final VCF"
+tabix -p vcf "filtered/combined_filtered.vcf.gz"
+
+echo ">>> Done. Final filtered VCF: filtered/combined_filtered.vcf.gz"
+```
 
