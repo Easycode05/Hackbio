@@ -436,6 +436,9 @@ This ensured one representative consequence per genomic position for downstream 
 - Father 0/0 + Child non-zero: De novo (not in father)
 - Father non-zero + Child non-zero: Inherited from Father
 
+**The Unified Table**
+<img width="1176" height="207" alt="chr7_unified" src="https://github.com/user-attachments/assets/4d7b0f19-9d15-40a8-a1f2-785134af5da4" />
+
 
 **Inheritance Analysis**
 
@@ -444,3 +447,7 @@ For each variant, child genotype were compared fo the father genotypes to determ
 - Not inherited from father (Not carried by Child): Child does not carry any alternate alleles present in father.
 - De novo (not in Father): Child carries an alternate allele absent in father.
 
+**Variant Interpretation**
+
+*rs115545701*
+This variant has been associated with Cystic fibrosis but they have conflicting
