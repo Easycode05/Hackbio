@@ -450,4 +450,20 @@ For each variant, child genotype were compared fo the father genotypes to determ
 **Variant Interpretation**
 
 *rs115545701*
-This variant has been associated with Cystic fibrosis but they have conflicting
+- This variant has been associated with Cystic fibrosis but they have conflicting interpretation of its pathogenicity, hence it is likely benign. 
+- The variant is present in the father but absent in the child - No inheritance seen in child
+- ClinVar Classification, Review status - 1 star
+- T=0.0005542 (776/1400248, GnomAD_exomes)
+   
+<img width="747" height="359" alt="rs115545701" src="https://github.com/user-attachments/assets/0ab70c2c-6f28-4167-8b45-958ecf3dc5c7" />
+
+*rs11971167*
+- Pathogenic for Congenital bilateral aplasia of vas deferens from CFTR mutation
+- Conflicitng interpretations of pathogenicity for cystic fibrosis
+- A=0.004169 (622/149212, GnomAD_genomes)
+  
+<img width="1179" height="343" alt="rs11971167" src="https://github.com/user-attachments/assets/7ac51330-1c2c-43fb-9bd8-77696c842610" />
+<img width="1184" height="322" alt="rs119_2" src="https://github.com/user-attachments/assets/d2ad9cde-3faa-426b-9faf-314587069294" />
+
+
+
