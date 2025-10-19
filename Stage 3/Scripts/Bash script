@@ -1,0 +1,131 @@
+1) Running fastqc on all the raw reads
+#! /bin/bash
+# This script is used to perform quality control for our RNA-seq raw reads
+# create directories for output
+mkdir -p qc
+
+file_loc="/home/a_adegite/a_adegite/projects/RNA_seq/microbes/data/raw_reads"
+
+for filename in "$file_loc"/*.fastq.gz; do
+    fastqc -o qc/ "$filename"
+done
+
+2) Running Multiqc
+ multiqc qc/*.zip -o qc/multiqc_raw
+
+Preprocessing of reads
+FastQC report for SRR20959676_C_1.fastq.gz
+-
+-
+
+FastQC report for SRR20959680_A_1.fastq.gz
+
+3) Trimming
+ 
+#!/bin/bash
+# trimming files
+mkdir -p trim
+
+# Samples
+Samples=(
+    "SRR20959676_C"
+    "SRR20959677_C"
+    "SRR20959678_C"
+    "SRR20959679_C"
+    "SRR20959680_A"
+    "SRR20959681_A"
+    "SRR20959682_A"
+)
+
+file_loc="/home/a_adegite/a_adegite/projects/RNA_seq/microbes/data/raw_reads"
+
+for s in "${Samples[@]}"; do
+    echo ">>> Running fastp for $s"
+    fastp \
+      -i "$file_loc/${s}_1.fastq.gz" \
+      -I "$file_loc/${s}_2.fastq.gz" \
+      -o "trim/${s}_1_trim.fastq.gz" \
+      -O "trim/${s}_2_trim.fastq.gz" \
+      -h "trim/${s}.fastp.html" \
+      -w 8
+done
+
+
+4) Downloading the staph aureus reference genome and the gff3 file
+
+
+# Create reference directory
+mkdir -p staph_reference && cd staph_reference
+
+# Download genome FASTA for USA300_FPR3757
+wget https://ftp.ensemblgenomes.ebi.ac.uk/pub/bacteria/release-62/fasta/bacteria_113_collection/staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465
+/dna/Staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465.ASM1346v1_.dna.toplevel.fa.gz
+
+#gunzip file
+gunzip Staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465.ASM1346v1_.dna.toplevel.fa.gz
+
+#rename for ease of use
+mv Staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465.ASM1346v1_.dna.toplevel.fa.gz Staph_aureus.fa
+
+#Index the reference genome
+STAR --runMode genomeGenerate --genomeDir genomeIndex --genomeFastaFiles Staph_aureus.fa
+
+#download the gff file
+wget https://ftp.ensemblgenomes.ebi.ac.uk/pub/bacteria/release-62/gff3/bacteria_113_collection/staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465/Staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465.ASM1346v1.62.gff3.gz
+
+#gunzip file
+gunzip Staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465.ASM1346v1.62.gff3.gz
+
+#rename for ease of use
+mv Staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465.ASM1346v1.62.gff3 Staph_aureus.gff3
+
+
+
+5) #filtering to IGV
+# create a directory to filter the .bam files and for IGV viewing
+mkdir IGV
+cp mapped/*.bam IGV/
+
+#Indexing the bam files
+#!/bin/bash
+for bam in IGV/*.bam; do 
+   echo "Indexing $bam..."
+   samtools index $bam
+done
+
+6) Running the feature count
+featureCounts -O -t gene -g gene_id -a Staph_aureus.gff3 -o counts/counts.txt IGV/*.bam
+
+featureCounts -T 8 -p -B -C -O -F GFF3 -t gene -g gene_id -a Staph_aureus.gff3 -o counts/counts.txt IGV/*.bam
+
+
+ 
+
+
+mapping 
+#!/bin/bash
+# Mapping trimmed paired-end RNA-seq reads with STAR
+mkdir -p mapped
+
+Samples=(
+    "SRR20959676_C"
+    "SRR20959677_C"
+    "SRR20959678_C"
+    "SRR20959679_C"
+    "SRR20959680_A"
+    "SRR20959681_A"
+    "SRR20959682_A"
+)
+
+genome="/home/a_adegite/israel/staph/genomeIndex"
+
+for s in "${Samples[@]}"; do
+    echo ">>> Mapping sample $s with STAR"
+    STAR --runThreadN 8 \
+         --genomeDir "$genome" \
+         --readFilesIn "trim/${s}_1_trim.fastq.gz" "trim/${s}_2_trim.fastq.gz" \
+         --readFilesCommand zcat \
+         --outFileNamePrefix "mapped/${s}_" \
+         --outSAMtype BAM SortedByCoordinate \
+         --outSAMattributes All 
+done
