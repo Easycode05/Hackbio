@@ -23,3 +23,8 @@
     - Imported `counts.txt` into R
     - Created sample metadata (acute vs chronic)
     - Ran DESeq2 for normalization and differential expression analysis
+
+## Biological Interpretation 
+The PCA and heatmap analyses demonstrate a clear transcriptomic distinction between *Staphylococcus aureus* in **acute** versus **chronic** phases of PJI. Acute samples show elevated expression of genes associated with **rapid growth, virulence, and stress responses**, reflecting the pathogen’s aggressive and invasive early behavior. 
+
+In contrast, chronic samples show upregulation of genes associated with **biofilm formation, metabolic downshift, and persistence mechanisms**, consistent with long-term survival in a nutrient-limited and hostile microenvironment. These findings highlight the dynamic physiological adaptation of *Staphylococcus aureus* and help explain why chronic PJI remains particularly resistant to treatment.
