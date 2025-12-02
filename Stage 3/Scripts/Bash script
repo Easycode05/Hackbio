@@ -79,30 +79,8 @@ gunzip Staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465.ASM1346v1
 #rename for ease of use
 mv Staphylococcus_aureus_subsp_aureus_usa300_fpr3757_gca_000013465.ASM1346v1.62.gff3 Staph_aureus.gff3
 
+5) # Mapping trimmed paired-end RNA-seq reads with STAR
 
-
-5) #filtering to IGV
-# create a directory to filter the .bam files and for IGV viewing
-mkdir IGV
-cp mapped/*.bam IGV/
-
-#Indexing the bam files
-#!/bin/bash
-for bam in IGV/*.bam; do 
-   echo "Indexing $bam..."
-   samtools index $bam
-done
-
-6) Running the feature count
-featureCounts -O -t gene -g gene_id -a Staph_aureus.gff3 -o counts/counts.txt IGV/*.bam
-
-featureCounts -T 8 -p -B -C -O -F GFF3 -t gene -g gene_id -a Staph_aureus.gff3 -o counts/counts.txt IGV/*.bam
-
-
- 
-
-
-mapping 
 #!/bin/bash
 # Mapping trimmed paired-end RNA-seq reads with STAR
 mkdir -p mapped
@@ -129,3 +107,21 @@ for s in "${Samples[@]}"; do
          --outSAMtype BAM SortedByCoordinate \
          --outSAMattributes All 
 done
+
+6) #filtering to IGV
+# create a directory to filter the .bam files and for IGV viewing
+mkdir IGV
+cp mapped/*.bam IGV/
+
+#Indexing the bam files
+#!/bin/bash
+for bam in IGV/*.bam; do 
+   echo "Indexing $bam..."
+   samtools index $bam
+done
+
+7) #Running the feature count
+featureCounts -O -t gene -g gene_id -a Staph_aureus.gff3 -o counts/counts.txt IGV/*.bam
+
+featureCounts -T 8 -p -B -C -O -F GFF3 -t gene -g gene_id -a Staph_aureus.gff3 -o counts/counts.txt IGV/*.bam
+
